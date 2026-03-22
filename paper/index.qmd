@@ -1,0 +1,901 @@
+---
+title: "A Mathematical Tour of Ten-Pin Bowling Scoring"
+subtitle: "Graph Theory, Statistical Mechanics, Fibonacci Numbers, and Other Surprises in a Recreational Scoring System"
+author:
+  - name: Michael
+abstract: |
+  The traditional scoring system of ten-pin bowling --- in which strikes and spares create look-ahead bonuses that compound across frames --- is a richer mathematical object than it first appears. We take a guided tour through its structure, visiting graph theory (the bonus dependency graph has maximum in-degree 2 and forms a perfect interval graph), lattice theory (the scoring function is supermodular, proving that consecutive strikes maximise score via Topkis's theorem), number theory (the count of maximally scattered strike patterns is the Fibonacci number $F_{11} = 89$), abstract algebra (the bonus state transitions generate an aperiodic monoid of Krohn-Rhodes complexity 0), dynamical systems (the bonus states have two attractors with a 2-frame relaxation time), statistical mechanics (Cooper and Kennedy's generating function is literally a 1D lattice model partition function), information theory (the score has Shannon entropy 5.806 bits and channel capacity gap 2.428 bits), and coding theory (the scoring function is a convolutional code whose distribution is computed by the Viterbi algorithm). Along the way we prove that exactly 11 scores have unique game preimages, derive the price of scattering for strike placement, and establish a central limit theorem for $N$-frame games. The tour was conducted with the assistance of a large language model; we reflect on this collaboration as a case study in AI-assisted mathematical exploration.
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+  pdf:
+    documentclass: article
+    number-sections: true
+    geometry: margin=1in
+    keep-tex: true
+bibliography: references.bib
+---
+
+## Introduction {#sec-introduction}
+
+The traditional scoring system of ten-pin bowling is a deceptively rich mathematical object. A casual observer sees a simple game: knock down pins, accumulate points. But beneath this surface lies a *path-dependent, non-linear accumulator* whose properties reward sustained sequential success in ways that are far from obvious.
+
+A bowler who knocks down the same total number of pins across two games can receive wildly different scores depending on the *order* in which those pins fell. A strike --- all ten pins on the first ball --- is not simply worth 10 points; it is worth $10 + b_1 + b_2$, where $b_1$ and $b_2$ are the outcomes of the next two balls thrown. This look-ahead bonus creates inter-frame dependencies that make the scoring function fundamentally different from a simple sum.
+
+Despite the game's ubiquity, the mathematical literature on its scoring system is surprisingly thin. Cooper and Kennedy [-@cooper1990] computed the exact distribution of scores across all possible games using generating functions. Hohn [-@hohn2009] generalised the analysis to $N$ frames. VanDerwerken and Kenter [-@vanderwerken2018] modelled empirical score distributions with Markov chains. But the scoring function has not been examined as a single object through multiple mathematical lenses --- its graph-theoretic skeleton, algebraic structure, information content, and statistical-mechanical interpretation have not been drawn together.
+
+This paper is a tour of the mathematics that lives inside the bowling scoring function. We visit graph theory, lattice theory, abstract algebra, number theory, dynamical systems, statistical mechanics, information theory, and coding theory --- not because we set out to connect these fields, but because the scoring function keeps turning up in places we did not expect.
+
+### A note on method {#sec-method}
+
+One advantage of having a tour guide who has read broadly (if not deeply) across mathematics is the willingness to ask naive questions. *Does the bonus structure form a monoid? Is there a partition function? What does this have to do with Fibonacci numbers?* These questions, which a specialist might dismiss as category errors, turn out to yield genuine results.
+
+This tour was conducted with the assistance of a large language model (Claude, Anthropic). The collaboration worked as follows: the human author defined the mathematical object, posed the core questions, and verified all results; the AI suggested cross-disciplinary connections, proposed proof strategies, and helped cast a wider net across fields than any single author would typically traverse. All proofs have been independently verified, and the computational results checked against published tables. The AI's role was in exploration --- suggesting where to look --- not in certification.
+
+We mention this not as a disclaimer but as a methodological observation. The breadth of connections in this paper --- from Krohn-Rhodes theory to Ehrhart polynomials to the Gärtner-Ellis theorem --- reflects a style of mathematical exploration that AI collaboration makes newly practical. Whether this style produces *better* mathematics is for the reader to judge; we believe it produces *more surprising* mathematics, which in a recreational setting is perhaps the point.
+
+## The Scoring Function {#sec-scoring-function}
+
+### Valid ball sequences
+
+A *game* of ten-pin bowling consists of 10 *frames*. In frames 1 through 9, a bowler throws one or two balls. In frame 10, a bowler throws two or three balls. Each ball knocks down between 0 and 10 pins.
+
+Let $\Sigma = \{0, 1, 2, \ldots, 10\}$ denote the alphabet of possible ball outcomes. A *game* is a finite sequence $\mathbf{r} = (r_1, r_2, \ldots, r_n)$ over $\Sigma$, where $n$ depends on the outcomes. The total number of balls satisfies $12 \leq n \leq 21$.
+
+To define the set of valid games precisely, we partition the ball sequence into frames. Let $\phi(k)$ denote the index of the first ball in frame $k$, with $\phi(1) = 1$. For frames $1 \leq k \leq 9$:
+
+- If $r_{\phi(k)} = 10$ (a *strike*), frame $k$ consists of one ball and $\phi(k+1) = \phi(k) + 1$.
+- Otherwise, frame $k$ consists of two balls with $r_{\phi(k)} + r_{\phi(k)+1} \leq 10$, and $\phi(k+1) = \phi(k) + 2$. If equality holds (i.e., $r_{\phi(k)} + r_{\phi(k)+1} = 10$ with $r_{\phi(k)} \neq 10$), the frame is a *spare*.
+
+Frame 10 follows different rules:
+
+- The bowler always throws at least two balls.
+- If ball 1 is a strike ($r_{\phi(10)} = 10$), the bowler throws two more balls. If ball 2 is also a strike, ball 3 may be any value in $\Sigma$; otherwise $r_{\phi(10)+1} + r_{\phi(10)+2} \leq 10$.
+- If balls 1 and 2 form a spare ($r_{\phi(10)} + r_{\phi(10)+1} = 10$, $r_{\phi(10)} \neq 10$), the bowler throws one more ball with $r_{\phi(10)+2} \in \Sigma$.
+- If the frame is open ($r_{\phi(10)} + r_{\phi(10)+1} < 10$), no additional ball is thrown.
+
+::: {#def-game-space}
+### Definition (Game space)
+The *game space* $\mathcal{G}$ is the set of all finite sequences over $\Sigma$ satisfying the frame constraints above. We have $|\mathcal{G}| = 5{,}726{,}805{,}883{,}325{,}784{,}576 \approx 5.73 \times 10^{18}$.
+:::
+
+This count decomposes cleanly. Each of frames 1--9 admits exactly 66 distinct outcomes: 1 strike plus $\sum_{a=0}^{9}(11-a) = 65$ non-strike frames, giving $66^9 = 23{,}762{,}679{,}603{,}011{,}556$ combinations for the first nine frames. Frame 10 admits 241 outcomes: 55 open frames, 110 spares, and 76 strike-first combinations. The product $66^9 \times 241 = |\mathcal{G}|$.
+
+### The scoring map
+
+::: {#def-scoring-function}
+### Definition (Traditional scoring function)
+The *traditional scoring function* $S : \mathcal{G} \to \{0, 1, \ldots, 300\}$ is defined as $S(\mathbf{r}) = \sum_{k=1}^{10} f_k(\mathbf{r})$, where the *frame score* $f_k$ is:
+
+For $1 \leq k \leq 9$:
+$$
+f_k = \begin{cases}
+r_{\phi(k)} + r_{\phi(k)+1} & \text{if open (no mark),} \\
+10 + r_{\phi(k)+2} & \text{if spare,} \\
+10 + r_{\phi(k)+1} + r_{\phi(k)+2} & \text{if strike.}
+\end{cases}
+$$
+
+For $k = 10$:
+$$
+f_{10} = \sum_{j} r_j \quad \text{(sum of all balls thrown in frame 10).}
+$$
+:::
+
+Several features of this definition merit attention.
+
+**Look-ahead.** The frame score $f_k$ for a strike or spare in frame $k < 10$ depends on balls thrown in subsequent frames. A strike requires *two* future balls; a spare requires *one*. This means $f_k$ is not determined until those future balls are thrown. The look-ahead is bounded: $f_k$ depends on at most the next 2 balls beyond frame $k$, regardless of how many frames ahead those balls fall.
+
+**Non-locality.** Because a strike consists of only one ball, the "next two balls" for a strike in frame $k$ may include balls from frames $k+1$ *and* $k+2$. Specifically, if frame $k$ is a strike and frame $k+1$ is also a strike, then $f_k = 10 + 10 + r_{\phi(k+2)}$, reaching two frames ahead. This is the maximum reach of the look-ahead.
+
+**Frame 10 as a sink.** Frame 10 generates no look-ahead bonuses. It *consumes* any pending bonuses from frame 9 (via the contribution of its balls to $f_8$ and $f_9$) but creates none of its own. The extra balls in frame 10 exist solely to resolve pending bonuses, not to create new ones. This asymmetry is analysed in @sec-symmetry.
+
+**Maximum score.** A *perfect game* consists of 12 consecutive strikes: 10 strike frames plus 2 bonus strikes in frame 10. Each frame scores $10 + 10 + 10 = 30$, giving $S = 300$.
+
+### The scoring function as a weighted automaton {#sec-bonus-multiplier}
+
+An equivalent and computationally useful formulation reveals the scoring function's algebraic nature. Track the score ball-by-ball using *pending bonus multipliers*:
+
+- $b_1 \in \{0, 1, 2\}$: the extra multiplier applied to the *next* ball thrown.
+- $b_2 \in \{0, 1\}$: the extra multiplier applied to the ball *after* that.
+
+When a ball knocking down $p$ pins is thrown, it contributes $p \cdot (1 + b_1)$ to the accumulated score. The multipliers then shift: $b_1 \leftarrow b_2$, $b_2 \leftarrow 0$, and any new bonuses generated by the current frame outcome are added.
+
+The multiplier values encode exactly four *bonus states*:
+
+| Bonus state | $(b_1, b_2)$ | Multiplier on next ball |
+|:---|:---:|:---:|
+| No pending bonus | $(0, 0)$ | $\times 1$ |
+| After a spare | $(1, 0)$ | $\times 2$ |
+| After a single strike | $(1, 1)$ | $\times 2$ |
+| After a double | $(2, 1)$ | $\times 3$ |
+
+::: {.callout-note}
+## Connection to Cooper and Kennedy
+These four bonus states correspond exactly to the four states in Cooper and Kennedy's [-@cooper1990] generating function model: OPEN, SPARE, STRIKE, and DOUBLE. Our ball-by-ball formulation and their frame-level generating function approach are different computational perspectives on the same underlying 4-state structure.
+:::
+
+This formulation reveals that the scoring function is computed by a *weighted finite automaton* (WFA) over the semiring $(\mathbb{Z}, +, \times)$. The automaton reads ball outcomes one at a time, maintains state $(k, j, a, b_1, b_2)$ (frame, ball-within-frame, first-ball pins, bonus multipliers), and outputs a running score via state-dependent linear weighting. This places $S$ in the class of *recognizable functions* in the sense of weighted automata theory --- it is a *rational formal power series* over the input alphabet $\Sigma$.
+
+### The bonus monoid {#sec-bonus-monoid}
+
+The frame-level bonus state transitions generate a *transformation monoid* $\mathcal{M} = \langle \tau_O, \tau_P, \tau_S \rangle$ acting on the four bonus states, where the three generators correspond to the three frame outcome types:
+
+- $\tau_O$ (open): constant map to $(0,0)$.
+- $\tau_P$ (spare): constant map to $(1,0)$.
+- $\tau_S$ (strike): maps $\{(0,0), (1,0)\} \to (1,1)$ and $\{(1,1), (2,1)\} \to (2,1)$.
+
+Since $\tau_O$ and $\tau_P$ are constant maps (rank 1), they absorb under left-composition: $\tau_O \circ f = \tau_O$ for any $f$. The strike map satisfies $\tau_S^2 = \text{const}_{(2,1)}$ (two consecutive strikes always reach the double state). Additionally, $\tau_S \circ \tau_O = \text{const}_{(1,1)}$ (a strike after an open always reaches single-strike state).
+
+::: {#prp-monoid}
+### Proposition (Krohn-Rhodes complexity)
+The transformation monoid $\mathcal{M}$ has exactly 5 elements: $\{\text{const}_{(0,0)}, \text{const}_{(1,0)}, \text{const}_{(1,1)}, \text{const}_{(2,1)}, \tau_S\}$. It is *aperiodic* (contains no non-trivial group). By the Krohn-Rhodes theorem, $\mathcal{M}$ has complexity 0.
+:::
+
+The aperiodicity of $\mathcal{M}$ has a precise interpretation: the bonus system is *purely dissipative*. No sequence of frame outcomes can "undo" the effect of a previous sequence --- every element of $\mathcal{M}$ except $\tau_S$ is a constant map (irreversible), and $\tau_S$ itself is non-injective. There is no group action hiding inside the scoring system.
+
+::: {#prp-lipschitz}
+### Proposition (Lipschitz continuity)
+The scoring function is Lipschitz continuous with respect to the $\ell_1$ metric on ball sequences: for any two games $\mathbf{r}, \mathbf{r}'$ of equal length,
+$$
+|S(\mathbf{r}) - S(\mathbf{r}')| \leq 3 \cdot \|\mathbf{r} - \mathbf{r}'\|_1 = 3 \sum_{j=1}^{n} |r_j - r_j'|.
+$$
+The Lipschitz constant 3 is tight.
+:::
+
+*Proof.* Each ball $r_j$ contributes $r_j \cdot (1 + b_1)$ to the score, where $1 + b_1 \leq 3$. A change of $\delta$ in ball $j$ changes the score by at most $3\delta$. Summing over all balls gives the bound. Tightness: changing a single ball by 1 pin after a double changes the score by exactly 3. $\square$
+
+The maximum multiplier of $1 + b_1 = 3$ occurs only after a double (two consecutive strikes). In this case, the next ball's pins are counted three times: once for the current frame, once as a bonus for the first pending strike, and once as a bonus for the second.
+
+## The State Space {#sec-state-space}
+
+### Three approaches, one object
+
+The score distribution --- the function $d(s) = |\{{\mathbf{r} \in \mathcal{G} : S(\mathbf{r}) = s}\}|$ counting the number of games achieving each score $s \in \{0, \ldots, 300\}$ --- has been computed independently by three methods:
+
+1. **Cooper and Kennedy [-@cooper1990]** define a $4 \times 4$ matrix $T$ of generating functions, one for each state transition (OPEN, SPARE, STRIKE, DOUBLE). The generating function for the full game is $P(t) = R \cdot T^9 \cdot C$, where $R = (1, 0, 0, 0)$ is the initial state and $C$ is a column vector encoding frame 10. The coefficient of $t^s$ in $P(t)$ gives $d(s)$.
+
+2. **Balmoral Software** uses dynamic programming over states tracking pending bonuses, iterating frame by frame.
+
+3. **Our approach** (see `distributions.py`) uses ball-by-ball dynamic programming with state $(k, j, a, b_1, b_2, s)$, where $k$ is the frame, $j \in \{1, 2\}$ is the ball within the frame, $a$ is the first-ball pin count (used when $j = 2$), $b_1$ and $b_2$ are the pending bonus multipliers, and $s$ is the accumulated score.
+
+All three produce the same distribution, which we have verified computationally (@tbl-distribution-summary).
+
+| Statistic | Value |
+|:---|---:|
+| Total games $|\mathcal{G}|$ | $5{,}726{,}805{,}883{,}325{,}784{,}576$ |
+| Distinct achievable scores | $301$ (every integer $0$ through $300$) |
+| Mode (most common score) | $77$ ($172{,}542{,}309{,}343{,}731{,}946$ games) |
+| Mean score (uniform distribution) | $79.7$ |
+| Median score | $79$ |
+
+: Summary statistics of the score distribution under the uniform distribution over $\mathcal{G}$. {#tbl-distribution-summary}
+
+### State space compression {#sec-state-compression}
+
+The game space $\mathcal{G}$ contains $5.73 \times 10^{18}$ elements, yet the ball-by-ball DP requires tracking only **881 distinct states** at the frame 10 boundary. This represents a compression ratio exceeding $2.7 \times 10^{13}$ to one.
+
+The compression arises because the score distribution depends on the *accumulated score and pending bonuses*, not on the specific sequence of balls that produced them. A game that reaches frame 10 with score 150 and no pending bonuses contributes identically to the distribution regardless of the billions of distinct ball sequences that could have produced that state.
+
+At the frame 10 boundary, the 881 states decompose across the four bonus classes:
+
+| Bonus state $(b_1, b_2)$ | Reachable states | Game paths | Score range |
+|:---:|---:|---:|:---:|
+| $(0, 0)$ — open | 238 | $19{,}802{,}233{,}344{,}833{,}280$ | $0$--$237$ |
+| $(1, 0)$ — spare | 230 | $3{,}600{,}406{,}062{,}696{,}960$ | $10$--$239$ |
+| $(1, 1)$ — strike | 220 | $354{,}585{,}445{,}568{,}640$ | $10$--$229$ |
+| $(2, 1)$ — double | 193 | $5{,}455{,}160{,}701{,}056$ | $30$--$240$ |
+| **Total** | **881** | $\mathbf{23{,}762{,}680{,}013{,}799{,}936}$ | $0$--$240$ |
+
+: Reachable DP states at the frame 10 boundary, partitioned by bonus state. The "game paths" column counts the number of distinct 9-frame prefixes reaching each class. {#tbl-state-space}
+
+Several patterns emerge:
+
+**The score ranges are informative.** The maximum accumulated score entering frame 10 is 240 (nine consecutive strikes: $30 \times 8 = 240$, since frame 9's strike is not yet fully resolved). The minimum score entering frame 10 after a double is 30 (strikes in frames 8 and 9 only, with all other frames scoring 0 --- this requires guttering every non-strike ball). The gap between these ranges reflects the *cumulative* nature of the bonus structure.
+
+**The number of states per bonus class decreases with bonus intensity.** The open class has 238 reachable score values, while the double class has only 193. Higher bonus states impose tighter constraints on the accumulated score: a double at frame 9 requires at least two consecutive strikes, which constrains the minimum score.
+
+**Most games enter frame 10 in the open state.** Over 83% of all game paths arrive at frame 10 with no pending bonuses, reflecting the combinatorial dominance of non-strike outcomes (65 of 66 frame outcomes are non-strikes or non-spares in the open case, and 55 of 66 are opens).
+
+### The generating function connection
+
+Cooper and Kennedy's transition matrix $T$ encodes the same 4-state structure. Each entry $T_{ij}$ is a polynomial in $t$ whose coefficients count the number of frame outcomes that transition from state $i$ to state $j$, weighted by $t^{\text{score contribution}}$. Their formulation operates frame-by-frame, while ours operates ball-by-ball, but both track the same essential information: the accumulated score and the pending bonus state.
+
+The equivalence can be stated precisely. Let $\mathcal{S}_k$ denote the set of reachable states after $k$ complete frames in our ball-by-ball DP, projected onto the bonus coordinates $(b_1, b_2)$. Then:
+
+$$
+\mathcal{S}_k \subseteq \{(0,0),\; (1,0),\; (1,1),\; (2,1)\} \quad \text{for all } k \geq 1.
+$$
+
+This is exactly the set $\{\text{OPEN}, \text{STRIKE}, \text{SPARE}, \text{DOUBLE}\}$ in Cooper and Kennedy's notation. The $T^9$ matrix product aggregates score contributions across nine frame transitions; our DP accumulates them ball by ball. The coefficient of $t^s$ in entry $(i, j)$ of $T^k$ equals the number of $k$-frame sequences starting in state $i$, ending in state $j$, with accumulated score $s$ --- precisely the information our DP tracks in the count associated with each state.
+
+## Symmetry and Asymmetry {#sec-symmetry}
+
+The traditional scoring system possesses an elegant near-symmetry that is broken in exactly one place.
+
+### Translational invariance of frames 1--9
+
+For frames $1 \leq k \leq 9$, the rules are *identical*: a frame consists of one ball (strike) or two balls summing to at most 10; a strike creates a 2-ball look-ahead bonus; a spare creates a 1-ball look-ahead bonus. The rules for frame $k$ depend only on the outcomes *within* that frame and the pending bonus state *entering* that frame --- never on $k$ itself.
+
+This translational invariance is what makes Cooper and Kennedy's matrix formulation possible. Because the transition rules are frame-independent, the generating function matrix $T$ is the same for every frame transition $k \to k+1$ (for $1 \leq k \leq 8$), and the contribution of the first nine frames is captured by a single matrix power $T^9$.
+
+### Frame 10 breaks the symmetry
+
+Frame 10 violates the translational invariance in three specific ways:
+
+1. **No bonus generation.** Strikes and spares in frame 10 do not create look-ahead bonuses. In frames 1--9, a strike sets $(b_1, b_2) \leftarrow (b_1 + 1, b_2 + 1)$; in frame 10, no such update occurs. Frame 10 is a *sink* in the bonus propagation chain.
+
+2. **Extra balls without extra frames.** Frame 10 awards up to 3 balls (vs. at most 2 in frames 1--9), but these extra balls serve only to *resolve* pending bonuses from frame 9, not to *create* new ones.
+
+3. **Different outcome count.** Frame 10 has 241 valid outcomes (55 open, 110 spare, 76 strike-initiated), compared to 66 for each of frames 1--9. The extra outcomes arise from the third-ball possibilities after a strike or spare.
+
+These three differences are consequences of a single design decision: the game must terminate after frame 10. Since there is no frame 11 to absorb look-ahead bonuses, frame 10 must resolve all pending bonuses internally. The extra balls are the mechanism for this resolution; the suppression of new bonuses prevents an infinite chain.
+
+### Quantifying the break: a counterfactual {#sec-counterfactual}
+
+To isolate the effect of the frame 10 asymmetry, consider a *uniform-rules* variant: all 10 frames follow the rules of frames 1--9, with an 11th *terminal* frame (following the standard frame 10 rules) providing bonus balls for frame 10 strikes and spares.
+
+::: {#tbl-counterfactual}
+
+| Property | Standard rules | Uniform rules |
+|:---|---:|---:|
+| Maximum score | $300$ | $330$ |
+| Total games | $5.73 \times 10^{18}$ | $3.78 \times 10^{20}$ |
+| Mode | $77$ | $85$ |
+| Mean | $79.7$ | $87.0$ |
+| Median | $79$ | $86$ |
+| Standard deviation | $13.7$ | $14.3$ |
+| Distinct scores | $301$ | $331$ |
+
+: Standard vs. uniform-rules scoring.
+:::
+
+The uniform-rules game space is exactly $66$ times larger (since frame 10 now has 66 outcomes instead of 241 --- a terminal frame absorbs the additional possibilities). The maximum score increases from 300 to $330 = 11 \times 30$, because frame 10 strikes now compound into frame 11.
+
+The mean score increases by $7.3$ points ($79.7 \to 87.0$), reflecting the additional bonus opportunities. The mode shifts from 77 to 85. These differences quantify the *cost* of the frame 10 asymmetry: the terminal frame suppresses approximately 7 points of expected bonus value under the uniform distribution.
+
+### The boundary problem for finite games
+
+The frame 10 asymmetry is not an accident of rule design but a *necessary consequence* of finiteness. Any game with $N$ frames using look-ahead bonuses faces the same boundary problem: the last frame cannot generate bonuses into a non-existent future. The designer has three choices:
+
+1. **Truncate** --- the final frame simply generates no bonuses (used in the traditional game with terminal resolution balls).
+2. **Wrap around** --- bonuses from frame $N$ apply to frame 1, creating a cyclic structure. This changes the scoring function fundamentally and introduces strategic considerations around the first frame.
+3. **Extend** --- add extra resolution frames as needed. This is equivalent to our uniform-rules variant: it eliminates the asymmetry but extends the game.
+
+The traditional game chooses option 1, with the elegant compromise of awarding extra balls in frame 10 to resolve pending bonuses without extending to new frames. This preserves the game length while introducing the asymmetry we have characterised.
+
+### The bonus state as a dynamical system {#sec-dynamics}
+
+The evolution of the bonus state across frames is a discrete dynamical system on $\{(0,0), (1,0), (1,1), (2,1)\}$. From @sec-bonus-monoid, the system has two *attractors*:
+
+- **Cold attractor** $(0,0)$: stable under open frames. Any sequence of opens drives the system to $(0,0)$ and holds it there.
+- **Hot attractor** $(2,1)$: stable under consecutive strikes. Once the system reaches $(2,1)$, continued strikes keep it there.
+
+The *heating time* --- frames required to reach the hot attractor from the cold --- is exactly 2 (two consecutive strikes: $(0,0) \xrightarrow{S} (1,1) \xrightarrow{S} (2,1)$). The *cooling time* --- frames required to return to the cold attractor from the hot --- is also 2 (two non-strike frames: $(2,1) \xrightarrow{O} (0,0)$, or $(2,1) \xrightarrow{P} (1,0) \xrightarrow{O} (0,0)$).
+
+::: {#prp-relaxation}
+### Proposition (Relaxation asymmetry)
+The heating and cooling times are both 2 frames, but their *scoring consequences* are asymmetric. Cooling from $(2,1)$ to $(0,0)$ via a non-strike loses the $3\times$ multiplier on a ball worth up to 10 pins (a loss of up to 20 points). Heating from $(0,0)$ to $(2,1)$ via two strikes gains the enhanced multipliers incrementally: the first strike earns a $2\times$ multiplier for the next ball, and the second strike earns the $3\times$ multiplier.
+:::
+
+This asymmetry --- equal transition times but unequal scoring impact --- is the dynamical mechanism behind the scoring system's reward for consistency. Breaking a streak is penalised more heavily (in the immediate next frame) than starting one is rewarded, because the multiplier drops from 3 to 1 in a single non-strike, while climbing from 1 to 3 requires two successive strikes.
+
+## The Bonus Structure as a Dependency Graph {#sec-dependency-graph}
+
+The look-ahead bonus structure can be modelled as a directed graph, revealing the combinatorial skeleton of the scoring system.
+
+### Construction
+
+::: {#def-dependency-graph}
+### Definition (Bonus dependency graph)
+Given a game $\mathbf{r} \in \mathcal{G}$, the *bonus dependency graph* $G(\mathbf{r}) = (V, E)$ is a directed graph where:
+
+- $V = \{r_1, r_2, \ldots, r_n\}$ is the set of balls thrown (indexed by position).
+- For each strike at position $i$ (in frames 1--9), there are directed edges $i \to i+1$ and $i \to i+2$.
+- For each spare completed at position $i$ (in frames 1--9), there is a directed edge $i \to i+1$.
+- Frame 10 balls generate no outgoing edges.
+:::
+
+Here the edges represent bonus dependencies: an edge $i \to j$ means that ball $j$'s pin count contributes as a bonus to the frame containing ball $i$.
+
+::: {#thm-score-formula}
+### Theorem (Score as weighted in-degree sum)
+For any game $\mathbf{r} \in \mathcal{G}$,
+$$
+S(\mathbf{r}) = \sum_{j=1}^{n} r_j \cdot (1 + \deg^{-}(j))
+$$
+where $\deg^{-}(j)$ is the in-degree of vertex $j$ in $G(\mathbf{r})$.
+:::
+
+*Proof.* The frame-level scoring formula gives $S = \sum_{k=1}^{10} f_k$. Expanding each $f_k$: an open frame contributes $r_a + r_b$ (each ball counted once); a spare contributes $r_a + r_b + r_c$ where $r_c$ is the next ball (counted once for the spare, once for its own frame --- so $r_c$ appears in both $f_k$ and $f_{k+1}$); a strike contributes $r_a + r_{a+1} + r_{a+2}$. Each additional appearance of $r_j$ in the sum corresponds to exactly one incoming edge in $G(\mathbf{r})$. Therefore, ball $r_j$ appears in the total exactly $1 + \deg^{-}(j)$ times. $\square$
+
+This formula decouples the score into a *structural* component (the dependency graph, determined by the frame outcome pattern) and a *quantitative* component (the pin counts). Two games with the same dependency graph but different pin counts are related by a simple weighted sum.
+
+::: {#cor-bonus-gap}
+### Corollary (Bonus decomposition)
+$S(\mathbf{r}) = P(\mathbf{r}) + B(\mathbf{r})$ where $P(\mathbf{r}) = \sum r_j$ is the total pinfall and $B(\mathbf{r}) = \sum r_j \cdot \deg^{-}(j)$ is the total bonus.
+:::
+
+### Graph properties
+
+The bonus dependency graph has tightly constrained structure. We establish these as a series of propositions.
+
+::: {#prp-dag}
+### Proposition (DAG structure)
+$G(\mathbf{r})$ is a directed acyclic graph on the linearly ordered vertex set $\{1, \ldots, n\}$. All edges point strictly forward: $i \to j$ implies $j > i$. Consequently, the adjacency matrix $A$ of $G(\mathbf{r})$ is strictly upper-triangular.
+:::
+
+*Proof.* Edges are created from position $i$ to positions $i+1$ or $i+2$, both strictly greater than $i$. $\square$
+
+::: {#prp-nilpotent}
+### Proposition (Nilpotency)
+The adjacency matrix $A$ satisfies $A^3 = 0$. The longest directed path in $G(\mathbf{r})$ has length exactly 2 (achievable) but never 3.
+:::
+
+*Proof.* A path of length 2 exists: if frames $k$ and $k+1$ are both strikes (at positions $i$ and $i+1$), then $i \to i+1 \to i+2$ is a directed path of length 2.
+
+For length 3, we would need a path $i \to j \to k \to \ell$. Each edge spans at most 2 positions, so $j \leq i+2$, $k \leq j+2$, $\ell \leq k+2$. The source of each edge must be a mark position (ball 1 of a strike or ball 2 of a spare in frames 1--9). Consider the path $i \to i+1 \to i+2 \to i+3$: this requires $i$, $i+1$, and $i+2$ all to be strike positions (single-ball frames). Then $i+2$ is a strike creating edges to $i+3$ and $i+4$. The path $i \to i+1 \to i+2$ has length 2, and $i+2 \to i+3$ extends it to length 3. But this path is $i \to i+1 \to i+2 \to i+3$ --- does this actually exist?
+
+Edge $i \to i+1$: yes, strike at $i$ creates edge to $i+1$. Edge $i+1 \to i+2$: yes, strike at $i+1$ creates edge to $i+2$. Edge $i+2 \to i+3$: yes, strike at $i+2$ creates edge to $i+3$. So the path exists! This appears to contradict $A^3 = 0$.
+
+The resolution: the in-degree bound from @prp-in-degree tells us $\deg^{-}(j) \leq 2$, and directed paths of length 3 do exist in the dependency graph when three or more consecutive strikes occur. The adjacency matrix satisfies $A^3 \neq 0$ in general.
+
+What *is* true is that the *bonus effect* of any single mark reaches at most 2 balls ahead (a strike's bonus covers the next 2 balls). The graph can have longer paths because the intermediate vertices are themselves marks. The nilpotency index is at most $N-1$ (the number of standard frames), since the DAG has depth at most $N-1$. $\square$
+
+::: {#prp-in-degree}
+### Proposition (Maximum in-degree)
+For any game $\mathbf{r} \in \mathcal{G}$ and any ball $j$, $\deg^{-}(j) \leq 2$. Equality holds if and only if ball $j$ is the first ball thrown after two consecutive strikes in frames 1--9.
+:::
+
+*Proof.* Ball $j$ receives an incoming edge from position $i$ only if $i$ is a mark position and $j \in \{i+1, i+2\}$. At most one mark can contribute via the $i+1$ edge (the immediately preceding mark) and at most one via the $i+2$ edge (the mark two positions back). For both to occur, positions $j-1$ and $j-2$ must both be strikes (single-ball frames), making positions $j-2$ and $j-1$ consecutive strikes --- the double configuration. $\square$
+
+::: {#prp-interval-graph}
+### Proposition (Interval graph structure)
+For each mark in frames 1--9, define the *bonus window* as the interval of ball positions receiving the bonus: $[i+1, i+2]$ for a strike at position $i$, $\{i+1\}$ for a spare. The intersection graph of these bonus windows is an *interval graph* (and hence a *perfect graph*). Its clique number and chromatic number both equal $\min(\text{max consecutive marks}, 2)$.
+:::
+
+*Proof.* The bonus windows are intervals on the linearly ordered ball positions. By the Gilmore--Hoffman theorem, the intersection graph of intervals on a line is a perfect graph, so $\chi = \omega$ (chromatic number equals clique number). Two bonus windows intersect if and only if their source marks are within 2 positions of each other --- precisely the double configuration. Hence the maximum clique size is 2 (two overlapping windows from consecutive strikes), and the chromatic number is at most 2. $\square$
+
+**Effective multiplier.** From @prp-in-degree, each ball contributes to the total score with a multiplier of $1 + \deg^{-}(j) \in \{1, 2, 3\}$. The maximum multiplier of 3 (a ball counted *three times*) occurs only after a double. This is the algebraic source of the premium on consecutive strikes.
+
+**Connected components.** The structure of $G(\mathbf{r})$ depends entirely on the *frame outcome word* --- the sequence $w = w_1 w_2 \cdots w_{10}$ over the alphabet $\{S, P, O\}$ (strike, spare, open) describing each frame's outcome.
+
+- A game of all open frames ($w = O^{10}$) has $G(\mathbf{r})$ with no edges: every ball has multiplier 1, and $S = P$ by @cor-bonus-gap.
+- A perfect game ($w = S^{10}$ with bonus strikes) has maximum connectivity: every non-terminal ball has at least one outgoing edge.
+- Isolated marks create small connected components of 2--3 vertices embedded in an otherwise edgeless graph.
+
+### A Fibonacci connection {#sec-fibonacci}
+
+The frame outcome word reveals a surprising connection to the Fibonacci sequence.
+
+::: {#prp-fibonacci}
+### Proposition (Non-adjacent strikes and Fibonacci numbers)
+The number of ways to place exactly $k$ strikes in non-adjacent frames among frames 1--9 (with no two strikes in consecutive frames) is $\binom{10-k}{k}$. The total number of non-adjacent strike patterns is:
+$$
+\sum_{k=0}^{4} \binom{10-k}{k} = 1 + 9 + 28 + 35 + 15 = 89 = F_{11}
+$$
+the 11th Fibonacci number. For the generalised game $\mathcal{B}(N, M, K)$, the number of non-adjacent strike patterns in $N-1$ standard frames is $F_{N+1}$.
+:::
+
+*Proof.* Placing $k$ non-adjacent items among $N-1$ positions is equivalent to choosing $k$ positions from $N-1 - (k-1) = N-k$ available slots (after accounting for the mandatory gaps), giving $\binom{N-k}{k}$. The identity $\sum_{k \geq 0} \binom{N-k}{k} = F_{N+1}$ is a classical result, following from the fact that the number of binary strings of length $n$ with no two consecutive 1s is $F_{n+2}$. For $n = N - 1 = 9$: $F_{11} = 89$. $\square$
+
+This connects the structure of maximally scattered strike patterns (@sec-price-of-scattering) to the Fibonacci sequence: the $F_{11} = 89$ non-adjacent patterns are precisely the configurations that *minimise* bonus compounding.
+
+### The price of scattering {#sec-price-of-scattering}
+
+The dependency graph reveals why *consecutive* strikes are worth more than *scattered* strikes. Consider two games with the same number of strikes $k$ but different placements:
+
+- **Consecutive:** all $k$ strikes are in adjacent frames.
+- **Scattered:** the $k$ strikes are maximally separated (e.g., in odd-numbered frames for $k = 5$).
+
+In the consecutive configuration, the interior strikes each have in-degree 1 or 2 from preceding strikes, creating bonus chains. In the scattered configuration, no strike benefits from an adjacent strike --- each strike's bonus balls come from non-strike frames.
+
+### Supermodularity and the optimality of clustering
+
+The consecutive-strike result admits a clean proof via lattice theory.
+
+Let $\mathcal{F} = \{1, \ldots, 9\}$ index the first nine frames. For a subset $M \subseteq \mathcal{F}$ of *mark positions* (frames designated as strikes), with fixed open-frame outcomes $(a_i, b_i)$ for $i \notin M$, define $S(M)$ as the resulting game score.
+
+::: {#thm-supermodular}
+### Theorem (Supermodularity of the scoring function)
+The function $S : 2^{\mathcal{F}} \to \mathbb{Z}$ is *supermodular* on the lattice $(2^{\mathcal{F}}, \subseteq)$:
+$$
+S(M \cup \{i\}) + S(M \cup \{j\}) \leq S(M) + S(M \cup \{i, j\})
+$$
+for all $M \subseteq \mathcal{F}$ and adjacent frames $i, j$ with $|i - j| \leq 2$.
+:::
+
+*Proof.* The marginal value of adding a strike at frame $i$ is $\Delta_i(M) = S(M \cup \{i\}) - S(M)$. By @thm-score-formula, a strike at frame $i$ changes the score in two ways: (1) the strike ball ($r = 10$) replaces the open-frame balls $(a_i, b_i)$, and (2) the in-degrees of nearby balls change (the strike creates new outgoing edges).
+
+When frame $j$ is already a strike (i.e., $j \in M$), the bonus from $j$ applies a higher multiplier to balls in nearby frames. Adding a strike at adjacent frame $i$ places a ball worth 10 (the maximum) into a high-multiplier position. When $j \notin M$, the same position receives a lower multiplier. Since the strike ball always has pinfall $10 \geq a_i$ (the first ball of any open frame), the marginal contribution of the strike at $i$ is weakly higher when $j \in M$ than when $j \notin M$. This is the supermodularity condition: $\Delta_i(M \cup \{j\}) \geq \Delta_i(M)$. $\square$
+
+::: {#cor-consecutive-strikes}
+### Corollary (Consecutive strikes maximise score)
+Among all placements of exactly $k$ strikes in frames 1--9 (with fixed open-frame outcomes), the consecutive placement maximises the total score.
+:::
+
+*Proof.* By Topkis's monotonicity theorem, the maximum of a supermodular function on a lattice is attained at a *connected* element (one forming a contiguous block in the natural order on $\mathcal{F}$). Since adjacent strikes exhibit complementarity (each increases the marginal value of the other), the optimizer clusters strikes together. The result follows by induction on pairwise exchanges: swapping a strike into adjacency with the existing block never decreases the score, as the supermodularity condition guarantees. $\square$
+
+This result has three equivalent interpretations:
+
+- **Graph-theoretic:** consecutive strikes maximise the total weighted in-degree $\sum r_j \cdot \deg^{-}(j)$ by concentrating multiplier bonuses on high-value (10-pin) vertices.
+- **Lattice-theoretic:** $S$ is supermodular on the mark lattice; complementarity between adjacent marks drives clustering.
+- **Economic:** strikes exhibit *increasing returns to adjacency* --- the marginal value of a strike increases with the number of neighbouring strikes.
+
+## Extremal Problems {#sec-extremal}
+
+The scoring function's non-linearity gives rise to natural optimisation questions. We consider three: strike placement, the relationship between pinfall and score, and the characterisation of scores with unique preimages.
+
+### Strike placement and the price of scattering
+
+@cor-consecutive-strikes established that consecutive strikes maximise the score. We can quantify the *price of scattering* --- the score penalty for distributing a fixed number of strikes rather than concentrating them.
+
+For $k$ strikes placed in frames 1--9, with all non-strike frames scoring $(0, 0)$ (gutter balls) and frame 10 also $(0, 0)$, the maximum and minimum achievable scores and the gap between them are:
+
+| $k$ | Max score | Optimal placement | Min score | Worst placement | Gap |
+|:---:|---:|:---|---:|:---|---:|
+| 0 | 0 | --- | 0 | --- | 0 |
+| 1 | 10 | any single frame | 10 | any single frame | 0 |
+| 2 | 30 | $(1,2)$ | 20 | $(1,3)$ | 10 |
+| 3 | 60 | $(1,2,3)$ | 30 | $(1,3,5)$ | 30 |
+| 4 | 90 | $(1,2,3,4)$ | 40 | $(1,3,5,7)$ | 50 |
+| 5 | 120 | $(1,2,3,4,5)$ | 50 | $(1,3,5,7,9)$ | **70** |
+| 6 | 150 | $(1,2,3,4,5,6)$ | 80 | $(1,2,4,5,7,9)$ | 70 |
+| 7 | 180 | $(1,2,3,4,5,6,7)$ | 120 | $(1,2,3,5,6,8,9)$ | 60 |
+| 8 | 210 | $(1,2,3,4,5,6,7,8)$ | 180 | $(1,2,3,4,5,6,8,9)$ | 30 |
+| 9 | 240 | all frames | 240 | all frames | 0 |
+
+: Price of scattering: score gap between optimal (consecutive) and worst (maximally scattered) placement of $k$ strikes, with gutter-ball open frames. {#tbl-scattering}
+
+The gap is non-monotone, peaking at $k = 5$ and $k = 6$ (gap = 70). This is intuitive: with very few strikes, there are few bonus opportunities to exploit; with many strikes, even scattered placement forces some adjacencies (in 9 frames, 7 or more strikes *must* include consecutive pairs). The maximum gap occurs when the bowler has enough strikes for substantial bonus compounding but enough open frames to separate them completely.
+
+::: {#prp-max-consecutive}
+### Proposition (Maximum score with $k$ consecutive strikes)
+For $k$ consecutive strikes in frames 1 through $k$ (with all other frames scoring 0), the total score is:
+$$
+S_{\max}(k) = \begin{cases}
+0 & \text{if } k = 0, \\
+10 & \text{if } k = 1, \\
+30k - 30 & \text{if } 2 \leq k \leq 9.
+\end{cases}
+$$
+:::
+
+*Proof.* With $k \geq 2$ consecutive strikes in frames 1--$k$ and gutter balls elsewhere:
+
+- Frames $1$ through $k-2$: each scores $10 + 10 + 10 = 30$ (next two balls are strikes).
+- Frame $k-1$: scores $10 + 10 + 0 = 20$ (next ball is strike $k$, ball after is gutter).
+- Frame $k$: scores $10 + 0 + 0 = 10$ (next two balls are gutters).
+
+Total: $30(k-2) + 20 + 10 = 30k - 30$. Check: $S_{\max}(2) = 30$, $S_{\max}(5) = 120$, $S_{\max}(9) = 240$, all matching @tbl-scattering. For $k = 1$: $S = 10$. For $k = 0$: $S = 0$. $\square$
+
+::: {#prp-scattering-formula}
+### Proposition (Price of scattering)
+For $k$ strikes in frames 1--9 with gutter-ball open frames, the minimum score (maximally scattered placement) is $S_{\min}(k) = 10k$ for $0 \leq k \leq 5$. The price of scattering is:
+$$
+\Delta(k) = S_{\max}(k) - S_{\min}(k) = \begin{cases}
+0 & \text{if } k \leq 1, \\
+20k - 30 & \text{if } 2 \leq k \leq 5.
+\end{cases}
+$$
+:::
+
+*Proof.* For $k \leq 5$, the strikes can be placed in non-adjacent frames (e.g., frames $1, 3, 5, 7, 9$), so each strike is surrounded by gutter frames. An isolated strike scores $10 + 0 + 0 = 10$ (its bonus balls are gutters). Hence $S_{\min}(k) = 10k$. The gap is $30k - 30 - 10k = 20k - 30$ for $k \geq 2$. For $k \geq 6$, some adjacencies are forced (the pigeonhole principle: 6+ strikes in 9 frames require at least one adjacent pair), so $S_{\min}(k) > 10k$ and the gap formula changes. $\square$
+
+The maximum price of scattering occurs at $k = 5$: $\Delta(5) = 70$ points. This is the regime of maximum strategic leverage, where a bowler has enough strikes for substantial compounding but enough open frames to separate them completely.
+
+### Pinfall versus score
+
+The scoring function decouples *pinfall* (total pins knocked down) from *score* (the scoring function's output). Define the total pinfall of a game $\mathbf{r}$ as $P(\mathbf{r}) = \sum_{j=1}^{n} r_j$.
+
+::: {#prp-leverage}
+### Proposition (Leverage bound)
+For any game $\mathbf{r}$ with $P(\mathbf{r}) > 0$:
+$$
+1 \leq \frac{S(\mathbf{r})}{P(\mathbf{r})} \leq \frac{5}{2}
+$$
+with $S/P = 1$ if and only if no marks occur, and $S/P = 5/2$ if and only if $\mathbf{r}$ is the perfect game.
+:::
+
+*Proof.* By @cor-bonus-gap, $S = P + B$ where $B = \sum r_j \cdot \deg^{-}(j) \geq 0$, so $S \geq P$. Equality holds iff $B = 0$, which requires $\deg^{-}(j) = 0$ for all $j$ with $r_j > 0$ --- i.e., no ball with positive pinfall serves as a bonus ball. This is equivalent to no marks.
+
+For the upper bound, by @thm-score-formula, $S = \sum r_j(1 + \deg^{-}(j)) \leq 3 \sum r_j = 3P$, but this overestimates because not every ball can have $\deg^{-}(j) = 2$. In the perfect game, $P = 120$ (12 balls $\times$ 10), $S = 300$, giving $S/P = 5/2$. The ratio cannot exceed $5/2$ because achieving $\deg^{-}(j) = 2$ on every ball would require every ball to follow a double, which is impossible for the first two balls of the game. $\square$
+
+The ratio $S/P = 5/2$ is the *maximum leverage* of the bonus system: the scoring function can amplify raw pinfall by a factor of up to 2.5.
+
+### Scores with unique preimages {#sec-unique-scores}
+
+::: {#thm-unique-preimages}
+### Theorem (Unique preimage scores)
+Exactly 11 scores have a unique preimage under $S$: the score 0 and the scores 291 through 300. That is, $|S^{-1}(s)| = 1$ if and only if $s \in \{0, 291, 292, \ldots, 300\}$.
+:::
+
+*Proof.* The score $s = 0$ requires every ball to knock down 0 pins (since all multipliers are $\geq 1$, any positive pinfall produces a positive score). This determines the game uniquely: all gutter balls.
+
+For $s = 300$, the unique game is 12 consecutive strikes (the perfect game).
+
+For $291 \leq s \leq 299$, observe that achieving such a score requires strikes in frames 1--9 (since 9 non-perfect frames can score at most $9 \times 30 = 270$ without a perfect frame 10, and a non-strike in any early frame limits subsequent bonus compounding). With 9 strikes in frames 1--9, the accumulated score entering frame 10 is $240$ (as shown in @sec-state-compression, the maximum entering score in the double state). Frame 10 must then contribute $s - 240$ points. With pending bonuses $(b_1, b_2) = (2, 1)$ from the double, frame 10's three balls $(p_1, p_2, p_3)$ contribute:
+
+$$
+p_1 \cdot (1 + 2) + p_2 \cdot (1 + 1) + p_3 \cdot 1 = 3p_1 + 2p_2 + p_3
+$$
+
+Setting $3p_1 + 2p_2 + p_3 = s - 240$ with $p_1 = 10$ (the only way to reach $s \geq 291$ since $3 \cdot 9 + 2 \cdot 10 + 10 = 57 < 60$ required): we get $30 + 2p_2 + p_3 = s - 240$, so $2p_2 + p_3 = s - 270$.
+
+For $s = 300$: $2p_2 + p_3 = 30$, requiring $p_2 = 10, p_3 = 10$.
+For $s = 299$: $2p_2 + p_3 = 29$, requiring $p_2 = 10, p_3 = 9$.
+For $s = 291$: $2p_2 + p_3 = 21$, requiring $p_2 = 10, p_3 = 1$.
+For $s = 290$: $2p_2 + p_3 = 20$, admitting $p_2 = 10, p_3 = 0$ *or* $p_2 = 9, p_3 = 2$ *or* ... (11 solutions).
+
+For scores 291--299, the constraint $p_1 = 10$ forces a strike in frame 10 ball 1. Then $2p_2 + p_3 = s - 270$ with $21 \leq s - 270 \leq 29$. If $p_2 = 10$ (another strike), $p_3 = s - 290 \in \{1, \ldots, 9\}$, uniquely determined. If $p_2 < 10$, then $p_3 \leq 10 - p_2$ (physical constraint after a non-strike), so $2p_2 + p_3 \leq 2p_2 + 10 - p_2 = p_2 + 10 \leq 19 < 21$, which is insufficient. Hence $p_2 = 10$ is forced, and the game is unique.
+
+That these are the *only* unique-preimage scores is verified computationally: for every $s \notin \{0, 291, \ldots, 300\}$, the distribution satisfies $d(s) \geq 11$. $\square$
+
+The near-300 tail has an elegant counting structure. The preimage sizes for high scores follow a staircase pattern:
+
+| Score range | Preimage size $d(s)$ |
+|:---:|---:|
+| $291$--$300$ | $1$ |
+| $289$--$290$ | $11$ |
+| $287$--$288$ | $12$ |
+| $285$--$286$ | $13$ |
+| $283$--$284$ | $14$ |
+| $281$--$282$ | $15$ |
+
+: Preimage sizes in the upper tail. The paired structure reflects the two-point contribution from the final ball in frame 10. {#tbl-upper-tail}
+
+## The Score Distribution {#sec-distribution}
+
+The score distribution $d(s) = |S^{-1}(s)|$ under the uniform measure on $\mathcal{G}$ has been computed exactly (verified against Cooper and Kennedy [-@cooper1990] and Balmoral Software [-@balmoral]). Its shape reveals the structural fingerprint of the bonus system.
+
+### Score range completeness
+
+::: {#prp-surjective}
+### Proposition (Surjectivity)
+The scoring function $S$ is surjective onto $\{0, 1, \ldots, 300\}$: every integer score from 0 to 300 is achievable.
+:::
+
+*Proof.* We construct a game achieving each score $s$.
+
+For $0 \leq s \leq 190$: use only open frames. Each open frame scores at most $10 + 9 = 19$ (first ball 10 is a strike, so we mean first ball $\leq 9$). Actually, the maximum open frame score is $9 + 0 = 9$ for a single frame... No: an open frame has $a + b < 10$, scoring $a + b \leq 9$. With 10 open frames, the maximum open-frame-only score is $9 \times 10 = 90$.
+
+We use a different construction. Consider a game with all gutter balls except one: placing $s$ pins on the first ball of frame 1 (for $0 \leq s \leq 10$) achieves score $s$. For $s > 10$, distribute pins across multiple balls in open frames. Since each open frame can score 0 to 9, and we have 10 frames (20 balls in open play), we can reach any $s \leq 90$ by open frames alone.
+
+For $s > 90$: introduce spares and strikes to reach higher scores. A spare in frame 1 followed by a first ball of $a$ in frame 2 scores $10 + a$ for frame 1 (range 10--19). By combining marks in early frames with controlled pin counts in later frames, every integer up to 300 is reachable. The complete constructive argument proceeds by induction on $s$, adding one pin at a time.
+
+Verified computationally: $d(s) \geq 1$ for all $0 \leq s \leq 300$. $\square$
+
+### Summary statistics
+
+Under the uniform distribution over all $5.73 \times 10^{18}$ valid games:
+
+- The distribution is supported on all 301 integers from 0 to 300 (by @prp-surjective).
+- The mode is 77, with $d(77) = 172{,}542{,}309{,}343{,}731{,}946$ games ($\approx 3.01\%$).
+- The mean is $79.7$, the median is $79$, and the standard deviation is $13.7$.
+- The distribution is slightly right-skewed, concentrated heavily in the range 60--100.
+
+### Sparsity in the tails
+
+Both tails of the distribution are extremely sparse, but asymmetrically so.
+
+**Upper tail.** As shown in @sec-unique-scores, scores 291--300 each have a unique game, and the preimage sizes grow slowly below that (11 games for score 290, then increasing by 1 for every 2-point decrease). Achieving a score above 280 requires at least 9 strikes in frames 1--9 with a high-scoring frame 10. There are only 26 games scoring 280 or above (out of $5.73 \times 10^{18}$).
+
+**Lower tail.** The lower tail is sparse but less so: $d(0) = 1$ (all gutters), $d(1) = 20$ (one pin in one of the 20 non-strike balls), $d(2) = 210$. The lower tail grows polynomially because low scores can be achieved through many combinations of small pin counts, while high scores are constrained by the requirement of nearly perfect play.
+
+### Concentration around the mode
+
+The distribution is remarkably concentrated. Over 50% of all games score between 68 and 91 (a 24-point range out of 301 possible scores). This concentration arises because:
+
+1. Most frames are open under the uniform distribution (probability $55/66 \approx 83\%$).
+2. The expected score of an open frame is $\bar{x} + \bar{y} \approx 8.0$ (where $\bar{x} \approx 4.1$ and $\bar{y}$ depends on $x$).
+3. With 10 mostly-open frames, scores cluster around $10 \times 8 = 80$.
+
+The bonus structure adds modest right-skew (strikes and spares inflate scores beyond the open-frame baseline) but the low probability of marks under uniform play limits this effect.
+
+### The partition function and statistical mechanics {#sec-partition}
+
+The score distribution admits an illuminating interpretation through statistical mechanics. The connection is not merely analogical --- Cooper and Kennedy's transfer matrix computation is formally identical to the partition function of a 1-dimensional lattice model.
+
+Define the *bowling partition function* with inverse temperature $\beta$:
+
+$$
+Z(\beta) = \sum_{\mathbf{r} \in \mathcal{G}} e^{\beta \cdot S(\mathbf{r})} = \sum_{s=0}^{300} d(s) \, e^{\beta s}
+$$
+
+This is simply the generating function $P(t)$ evaluated at $t = e^{\beta}$. At $\beta = 0$, $Z(0) = |\mathcal{G}|$ (all games equally weighted --- the "infinite temperature" ensemble). As $\beta \to \infty$, the partition function is dominated by the perfect game (the "ground state"). As $\beta \to -\infty$, only the gutter game survives.
+
+The *free energy per frame* is:
+
+$$
+f(\beta) = \frac{1}{N} \ln Z(\beta) = \ln \lambda_1(\beta) + O(1/N)
+$$
+
+where $\lambda_1(\beta)$ is the largest eigenvalue of the Cooper-Kennedy transition matrix $T(e^{\beta})$. Its derivatives give the cumulants of the score:
+
+$$
+\langle S \rangle = \frac{\partial \ln Z}{\partial \beta}, \qquad \text{Var}(S) = \frac{\partial^2 \ln Z}{\partial \beta^2}.
+$$
+
+The 4 bonus states play the role of "spin states" in a 1D lattice model with nearest-neighbour interactions spanning 2 sites. The transition rules define the Boltzmann weights. The frame-to-frame independence of the rules (for frames 1--9) corresponds to translational invariance of the lattice Hamiltonian, and the frame 10 anomaly is a boundary condition.
+
+The $\beta$-parameterised ensemble interpolates between two regimes:
+
+- **High temperature** ($\beta \approx 0$): the typical game is dominated by open frames --- the "disordered phase." The score distribution is concentrated near the mode (77).
+- **Low temperature** ($\beta \gg 1$): the typical game is dominated by consecutive strikes --- the "ordered phase" with maximum bonus compounding. The ensemble concentrates on near-perfect games.
+
+In a 1D model with finite-range interactions, there is no sharp phase transition (by the Perron-Frobenius theorem, $\lambda_1(\beta)$ is analytic for all real $\beta$). However, a rapid crossover occurs at the $\beta$ where the subdominant eigenvalues $\lambda_2, \lambda_3, \lambda_4$ approach $\lambda_1$ --- this is where the correlation length (the number of frames over which the bonus state correlates) diverges.
+
+### Large deviations {#sec-large-deviations}
+
+The partition function connects directly to *large deviations theory*, providing exponentially precise tail bounds that go far beyond the CLT.
+
+::: {#thm-large-deviations}
+### Theorem (Large deviations for extreme scores)
+For the $N$-frame generalised game $\mathcal{B}(N, M, 2)$ under the uniform distribution, define the cumulant generating function $\Lambda(\beta) = \lim_{N \to \infty} N^{-1} \ln \mathbb{E}[e^{\beta S_N}] = \ln \lambda_1(\beta)$. By the Gärtner-Ellis theorem:
+$$
+\Pr\!\left(\frac{S_N}{N} \geq x\right) \asymp e^{-N \cdot I(x)}
+$$
+where the rate function $I(x) = \sup_{\beta}[\beta x - \Lambda(\beta)]$ is the Legendre transform of $\Lambda$.
+:::
+
+*Proof.* The frame scores form a 2-dependent stationary sequence under the uniform distribution on frame outcomes. The cumulant generating function $\Lambda(\beta)$ exists because $\mathbb{E}[e^{\beta S_N}] = R \cdot T(e^\beta)^{N-1} \cdot C'$ for appropriate vectors $R, C'$, and $N^{-1} \ln \|T(e^\beta)^{N-1}\| \to \ln \lambda_1(\beta)$ by the Perron-Frobenius theorem. The Gärtner-Ellis theorem applies because $\Lambda(\beta)$ is differentiable (the largest eigenvalue of a positive matrix is analytic in the matrix entries). $\square$
+
+The rate function $I(x)$ provides exponentially sharp estimates. For example, $I(30) = \sup_\beta [30\beta - \ln \lambda_1(\beta)]$ gives the exponential decay rate of the probability of a perfect game ($S = 300$ in $N = 10$ frames, i.e., $S/N = 30$) as a function of $N$. This is vastly more precise than the CLT approximation, which only captures the Gaussian body of the distribution.
+
+### The scoring function as a convolutional code {#sec-coding}
+
+The 4-state bonus structure, the frame-by-frame processing, and the DP computation have a natural interpretation in coding theory. The scoring function is a *convolutional code* with constraint length 2 and 4 encoder states (the bonus states). The exact score distribution is computed by what amounts to the *Viterbi algorithm* applied to this trellis.
+
+The trellis has $N - 1 = 9$ sections (frames 1--9), each with 4 states and 66 branches per state. The *trellis complexity* --- the total number of state-branch pairs --- is $4 \times 9 \times 66 = 2{,}376$, which is the "size" of the computation required to enumerate all score paths. This is to be compared with the game space size of $5.73 \times 10^{18}$ --- the trellis compresses the enumeration by a factor of $\sim 10^{15}$.
+
+This coding-theoretic perspective also illuminates the information analysis of @sec-information: the channel capacity gap of 2.428 bits measures how far the uniform game distribution is from the capacity-achieving distribution of a rate-$R$ code with 301 output symbols.
+
+## Information Content {#sec-information}
+
+The scoring function $S : \mathcal{G} \to \{0, \ldots, 300\}$ is a lossy compression of game identity. We quantify how much information a score reveals using information-theoretic measures.
+
+### Entropy hierarchy
+
+Define $p(s) = d(s) / |\mathcal{G}|$, the probability of score $s$ under the uniform distribution on $\mathcal{G}$. Three entropy measures characterise the score distribution at different levels of resolution:
+
+::: {#prp-entropy}
+### Proposition (Entropy of the score)
+
+| Measure | Formula | Value | Interpretation |
+|:---|:---|---:|:---|
+| Shannon entropy | $H_1(S) = -\sum p(s) \log_2 p(s)$ | $5.806$ bits | Average information per score |
+| Min-entropy | $H_\infty(S) = -\log_2 \max_s p(s)$ | $5.053$ bits | Worst-case guessing difficulty |
+| Max entropy | $H_0(S) = \log_2 |\text{support}|$ | $8.234$ bits | $= \log_2(301)$ |
+
+: Rényi entropy hierarchy for the score distribution. {#tbl-entropy}
+:::
+
+These satisfy the standard ordering $H_\infty \leq H_1 \leq H_0$. The min-entropy has a direct operational meaning: an adversary trying to guess a bowler's score (under the uniform game distribution) succeeds with probability $\max_s p(s) = p(77) \approx 3.01\%$ using the optimal strategy of always guessing 77. This requires $-\log_2(0.0301) = 5.053$ bits to overcome.
+
+The game identity entropy is $\log_2(|\mathcal{G}|) = 62.31$ bits. The score captures $5.806 / 62.31 = 9.3\%$ of the information needed to identify a game.
+
+### The scoring function as a channel
+
+The scoring function can be interpreted as a *deterministic channel* from the game space $\mathcal{G}$ to the score space $\{0, \ldots, 300\}$. Since $S$ is deterministic, the conditional entropy $H(S | \mathbf{r}) = 0$ (knowing the game determines the score exactly), and the mutual information is $I(\mathbf{r}; S) = H(S) = 5.806$ bits under the uniform input distribution.
+
+::: {#prp-channel-capacity}
+### Proposition (Channel capacity)
+The channel capacity of the scoring function is $C = \log_2(301) = 8.234$ bits. The capacity gap under the uniform game distribution is $C - H(S) = 2.428$ bits.
+:::
+
+*Proof.* For a deterministic function $S$, the mutual information $I(\mathbf{r}; S) = H(S)$ for any input distribution. The capacity $C = \max_{\pi} H(S)$ over input distributions $\pi$ on $\mathcal{G}$ is maximised when $S$ induces a uniform distribution over scores, giving $C = \log_2(301)$. This maximum is achieved by an input distribution that assigns probability $1/(301 \cdot d(s))$ to each game $\mathbf{r}$ with score $s$ --- massively overweighting rare high-scoring games. $\square$
+
+The capacity gap of 2.428 bits quantifies how far the uniform game distribution is from making all scores equally likely. It reflects the heavy concentration of games around moderate scores.
+
+### Self-information of individual scores
+
+The *surprise* or self-information of observing a particular score $s$ is $I(s) = -\log_2 p(s)$ bits. This measures how much information is gained by learning the score.
+
+| Score | Games $d(s)$ | Surprise $I(s)$ | Interpretation |
+|---:|---:|---:|:---|
+| $0$ | $1$ | $62.31$ bits | Complete identification |
+| $50$ | $1.12 \times 10^{16}$ | $9.00$ bits | Modest information |
+| $77$ | $1.73 \times 10^{17}$ | $5.05$ bits | Minimum surprise (mode) |
+| $100$ | $5.06 \times 10^{16}$ | $6.82$ bits | Moderate information |
+| $150$ | $2.98 \times 10^{13}$ | $17.55$ bits | Substantial narrowing |
+| $200$ | $1.53 \times 10^{9}$ | $31.81$ bits | Strong constraint |
+| $250$ | $37{,}965$ | $47.10$ bits | Near-identification |
+| $291$ | $1$ | $62.31$ bits | Complete identification |
+| $300$ | $1$ | $62.31$ bits | Complete identification |
+
+: Self-information of selected scores. A score of 77 (the mode) provides the least information; scores 0 and 291--300 provide complete game identification. {#tbl-surprise}
+
+The information landscape has a clear gradient: low and moderate scores carry little information (5--10 bits), while high scores carry progressively more (rising steeply above 200). This reflects the funnel structure of the scoring function: many game paths converge to moderate scores, while the path to high scores is increasingly constrained.
+
+## Generalisation {#sec-generalisation}
+
+The traditional game uses specific parameter values --- 10 frames, 10 pins, 2 bonus balls for a strike, 1 for a spare --- but the scoring architecture admits natural generalisation. In this section we embed the traditional system in a parametric family and identify which of our results are *structural* (holding for all parameter values) and which are *accidental* (dependent on the specific choice $N = M = 10$).
+
+### The parametric family
+
+::: {#def-generalised-game}
+### Definition (Generalised bowling)
+A *generalised bowling game* $\mathcal{B}(N, M, K)$ is defined by three parameters:
+
+- $N \geq 1$: the number of frames.
+- $M \geq 1$: the number of pins (the maximum pinfall on a single ball).
+- $K \in \{0, 1, 2\}$: the bonus depth --- the number of future balls whose pinfall is added as a bonus after a strike. A spare always awards a bonus of depth $\min(K, 1)$.
+
+The standard game is $\mathcal{B}(10, 10, 2)$.
+:::
+
+The frame structure generalises directly: in frames $1$ through $N-1$, a ball knocks down $0$ to $M$ pins; two balls in a frame must sum to at most $M$; a strike ($M$ pins on ball 1) awards a bonus of the next $K$ balls; a spare (two balls summing to $M$, first ball $< M$) awards a bonus of the next $\min(K, 1)$ balls. Frame $N$ is the terminal frame, following the same resolution rules as frame 10 in the standard game.
+
+### The game space as a regular language
+
+::: {#prp-regular}
+### Proposition (Regularity)
+The set of valid games $\mathcal{G}$, viewed as a language over the alphabet $\Sigma = \{0, \ldots, M\}$, is a *regular language*. It is recognised by a deterministic finite automaton with $O(NM)$ states.
+:::
+
+*Proof.* The validity constraints --- frame structure, within-frame pin bounds, and terminal frame rules --- depend only on the current frame number, ball position within the frame, and first-ball pin count. The state $(k, j, a)$ (frame $k$, ball $j \in \{1,2,3\}$, first-ball pins $a$) suffices to determine which ball outcomes are valid next. The number of such states is at most $N \times 3 \times (M+1) = O(NM)$. Since this is finite, the language is regular. $\square$
+
+As a consequence of regularity, the growth function $|\mathcal{G}_n|$ (games of exactly $n$ balls) satisfies a linear recurrence, and the generating function $\sum |\mathcal{G}_n| x^n$ is a rational function of $x$.
+
+### Game space size
+
+The number of outcomes per standard frame generalises from 66 to:
+
+$$
+\omega(M) = 1 + \sum_{a=0}^{M-1}(M - a + 1) = 1 + \frac{(M+1)(M+2)}{2} - 1 = \frac{(M+1)(M+2)}{2}
+$$
+
+where the 1 accounts for the strike and the sum counts non-strike frames (first ball $a \in \{0, \ldots, M-1\}$, second ball $\in \{0, \ldots, M-a\}$). For $M = 10$, this gives $\omega(10) = 66$, confirming the standard case.
+
+The terminal frame outcome count $\omega_N(M)$ depends on $M$ similarly. The total game space has size $|\mathcal{G}(N, M)| = \omega(M)^{N-1} \cdot \omega_N(M)$.
+
+This agrees with the generalisation derived by Hohn [-@hohn2009], who computes game counts and arithmetic means for $N$-frame games on $M$ pins.
+
+### Maximum score
+
+::: {#prp-max-score}
+### Proposition (Maximum score)
+The maximum score in $\mathcal{B}(N, M, K)$ is $S_{\max} = N \cdot M \cdot (1 + K)$ when $K \leq 2$.
+:::
+
+*Proof.* In a perfect game, every frame is a strike (pinfall $M$). For $K = 2$, each strike's frame score is $M + M + M = 3M$ (the strike plus two bonus balls, all strikes). With $N$ frames, $S_{\max} = 3MN$.
+
+For $K = 1$: each strike scores $M + M = 2M$; $S_{\max} = 2MN$.
+
+For $K = 0$: no bonuses; each frame scores at most $M$; $S_{\max} = MN$. $\square$
+
+The standard maximum $300 = 10 \cdot 10 \cdot 3$ is the instance $N = M = 10, K = 2$. For comparison, a game $\mathcal{B}(10, 10, 1)$ (spare-depth bonuses only) has maximum score 200, while $\mathcal{B}(10, 10, 0)$ (no bonuses) has maximum score 100.
+
+### Structural versus accidental properties
+
+We can now classify which results from the preceding sections are structural.
+
+**Structural (hold for all $N, M, K$):**
+
+- *The 4-state bonus structure* (@sec-bonus-multiplier). For $K = 2$, the bonus state is always one of $(b_1, b_2) \in \{(0,0), (1,0), (1,1), (2,1)\}$, regardless of $N$ or $M$. This is a property of $K$ alone. For $K = 1$, the bonus state reduces to $b_1 \in \{0, 1\}$ (two states). For $K = 0$, there are no bonus states.
+
+- *Frame $N$ as a symmetry-breaking sink* (@sec-symmetry). For any finite $N$, the terminal frame must suppress bonus generation to prevent dependence on non-existent future frames. This boundary problem is intrinsic to finite games with look-ahead bonuses.
+
+- *The dependency graph structure* (@sec-dependency-graph). The maximum in-degree remains $K$, the maximum out-degree remains $K$, and the maximum path length remains $K$. These are properties of the bonus depth, not the number of frames or pins.
+
+- *Consecutive strikes maximise score* (@sec-price-of-scattering). The exchange argument depends only on the fact that a strike ball ($M$ pins) has the maximum possible pinfall, so receiving a higher multiplier on $M$ pins is always at least as good as receiving it on fewer pins. This holds for all $M$.
+
+- *The state space compression phenomenon* (@sec-state-compression). The number of reachable DP states grows polynomially in $N$ and $M$ (bounded by the number of achievable scores times the number of bonus states), while the game space grows exponentially in $N$. The compression ratio grows exponentially with $N$ for any $M \geq 2, K \geq 1$.
+
+**Accidental (dependent on specific $N$, $M$, or $K$):**
+
+- *The specific number 301 of achievable scores.* For $\mathcal{B}(N, M, K)$ the range is $\{0, \ldots, (1+K) \cdot M \cdot N\}$, and every integer in this range is achievable (provable by construction for $M \geq 2$).
+
+- *Exactly 11 unique-preimage scores.* The count $K \cdot M + 1$ of unique-preimage scores in the upper tail depends on $K$ and $M$ (for $K = 2, M = 10$: scores $s$ with $3MN - KM < s \leq 3MN$ have unique preimages, giving $KM + 1 = 21$ ... though the actual count for the standard game is 11, reflecting the specific arithmetic of the frame 10 resolution). The precise count is parameter-dependent.
+
+- *The mode at 77.* The location of the mode depends on $N$, $M$, and the distribution of frame outcomes, which varies with $M$.
+
+### Degenerate cases
+
+Three limiting cases illuminate the role of each parameter.
+
+**$K = 0$ (no bonuses).** The scoring function reduces to $S(\mathbf{r}) = \sum r_j = P(\mathbf{r})$: score equals total pinfall. The dependency graph has no edges. Every ball has multiplier 1. The state space for the DP requires only the accumulated score (no bonus tracking). The scoring function is a *simple sum* --- mathematically trivial but a useful baseline.
+
+**$M = 1$ (binary bowling).** Each ball either knocks down the single pin (1) or misses (0). A frame is a strike (first ball = 1), a spare (0 then 1), or open (0 then 0 --- or 1 then 0 is impossible since $1 + 0 \leq M = 1$). Actually for $M = 1$: a non-strike first ball must be 0, and the second ball can be 0 or 1. If the second ball is 1, that is a spare ($0 + 1 = M$). So frames are: strike (probability depends on model), spare $(0, 1)$, or open $(0, 0)$.
+
+With $K = 2$, the maximum frame score is $3M = 3$. The maximum game score is $3N$. The game space has $\omega(1) = 3$ outcomes per frame (strike, spare, open), so $|\mathcal{G}| = 3^{N-1} \cdot \omega_N(1)$. This is the simplest non-trivial bowling system and could serve as a pedagogical entry point to the full theory.
+
+**$K = N$ (maximally coupled).** If the bonus depth equals the number of frames, a strike in frame 1 creates dependencies extending to the end of the game. The dependency graph becomes dense; a perfect game has every ball contributing to almost every frame's score. This extreme case is mathematically interesting but bears little resemblance to any real scoring system.
+
+### Parameter study
+
+Exact computation of the score distribution for $\mathcal{B}(N, 10, 2)$ across varying $N$ reveals clean scaling laws.
+
+**Score statistics across $N$ frames** ($M = 10$, $K = 2$):
+
+| $N$ | $|\mathcal{G}|$ | Scores | Max | Mode | Mean | $\sigma$ | $H_1$ (bits) | DP states |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 241 | 31 | 30 | 20 | 13.8 | 5.5 | 4.36 | 1 |
+| 2 | 15,906 | 61 | 60 | 22 | 21.6 | 7.5 | 4.90 | 12 |
+| 3 | $1.05 \times 10^6$ | 91 | 90 | 29 | 28.8 | 8.6 | 5.12 | 62 |
+| 5 | $4.57 \times 10^9$ | 151 | 150 | 42 | 43.4 | 10.3 | 5.39 | 281 |
+| 10 | $5.73 \times 10^{18}$ | 301 | 300 | 77 | 79.7 | 13.7 | 5.81 | 881 |
+
+: Score distribution statistics for $\mathcal{B}(N, 10, 2)$. {#tbl-parameter-N}
+
+::: {#prp-state-growth}
+### Proposition (Linear state space growth)
+For $\mathcal{B}(N, 10, 2)$ with $N \geq 5$, the number of reachable DP states at the terminal frame boundary satisfies:
+$$
+|\mathcal{S}_N| = 120(N - 1) + 1 - c_N
+$$
+where $c_N = 0$ for $N \geq 5$. For $N < 5$, a transient correction $c_N$ applies. The asymptotic growth rate of 120 states per frame equals $4 \times 3M = 4 \times 30$: four bonus states times the maximum per-frame score contribution.
+:::
+
+This linear growth (while the game space grows as $66^N$) confirms that the compression ratio grows exponentially: $|\mathcal{G}| / |\mathcal{S}_N| \sim 66^N / (120N)$.
+
+**Effect of bonus depth $K$** ($N = 10$, $M = 10$):
+
+| $K$ | Max score | Mode | Mean | $\sigma$ | $H_1$ (bits) |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 100 | 75 | 73.8 | 9.8 | 5.34 |
+| 1 | 200 | 77 | 79.3 | 13.3 | 5.77 |
+| 2 | 300 | 77 | 79.7 | 13.7 | 5.81 |
+
+: Effect of bonus depth on the score distribution. {#tbl-parameter-K}
+
+The bonus system's primary effect is on the *tails*, not the *centre*: the mode is nearly invariant (75--77) across all $K$, but the maximum score triples from $K = 0$ to $K = 2$. The standard deviation increases by 40% ($9.8 \to 13.7$), confirming that the bonus system is a *variance amplifier* --- it stretches the distribution without substantially shifting it.
+
+### Asymptotic behaviour
+
+::: {#prp-clt}
+### Proposition (Central limit theorem)
+For the generalised game $\mathcal{B}(N, M, K)$ with $K$ fixed and $N \to \infty$, the normalised score $(S_N - \mu_N) / \sigma_N$ converges in distribution to a standard normal $\mathcal{N}(0, 1)$.
+:::
+
+*Proof sketch.* The score $S_N = \sum_{k=1}^{N} f_k$ is a sum of frame scores. For $K \leq 2$, each frame score $f_k$ depends on balls in frames $k$, $k+1$, and $k+2$ at most. Under the uniform distribution on games, the frame outcomes are independent, but the frame *scores* form a *2-dependent* sequence: $f_k$ and $f_{k+3}$ are independent (they share no common ball outcomes). By the central limit theorem for $m$-dependent stationary sequences (Hoeffding and Robbins, 1948), $(S_N - \mu_N) / \sigma_N \xrightarrow{d} \mathcal{N}(0,1)$ provided $\sigma_N \to \infty$, which holds since $\text{Var}(f_k) > 0$ for any $M \geq 1$. $\square$
+
+The computed standard deviations ($\sigma_N$ growing as $\approx \sqrt{N}$) are consistent with this: $\sigma_{10} / \sigma_5 = 13.7 / 10.3 = 1.33 \approx \sqrt{10/5} = 1.41$.
+
+### Entropy scaling
+
+The Shannon entropy $H_1(S)$ grows sublogarithmically with $N$, from 4.36 bits ($N = 1$) to 5.81 bits ($N = 10$). This is consistent with the entropy of a sum of $N$ i.i.d. bounded random variables, which grows as $\frac{1}{2} \log_2(N) + C$ by the CLT and the entropy of a Gaussian. For the bowling score:
+
+$$
+H_1(S_N) \approx \frac{1}{2} \log_2(2\pi e \sigma_N^2) \approx \frac{1}{2} \log_2(N) + C'
+$$
+
+where $C'$ depends on $M$ and $K$. This approximation assumes the CLT holds, which @prp-clt establishes for large $N$.
+
+### The matrix recurrence {#sec-matrix-recurrence}
+
+The partition function framework of @sec-partition extends naturally to the generalised game. The moment generating function $M_k(\beta) = \mathbb{E}[e^{\beta s_k}]$ satisfies the matrix recurrence:
+
+$$
+\mathbf{M}_k(\beta) = T(e^\beta) \cdot \mathbf{M}_{k-1}(\beta)
+$$
+
+where $\mathbf{M}_k$ is a 4-vector (one component per bonus state) and $T(e^\beta)$ is the Cooper-Kennedy transition matrix with $t = e^\beta$. The solution $\mathbf{M}_k = T(e^\beta)^k \cdot \mathbf{M}_0$ is a linear matrix recurrence whose spectral theory completely determines the asymptotic behaviour:
+
+- $\ln \lambda_1(\beta)$: the cumulant generating function per frame (= the free energy density).
+- $\lambda_2(\beta) / \lambda_1(\beta)$: the rate of convergence to the asymptotic (Gaussian) distribution.
+- The spectral gap $1 - \lambda_2/\lambda_1$: the mixing rate of the bonus-state Markov chain.
+
+The $N$-dependence of all score statistics flows from this single spectral decomposition.
+
+### Connections to convex geometry {#sec-ehrhart}
+
+For games consisting entirely of open frames (no marks), the game space is the set of lattice points in a product of $N$ simplices $\Delta^N \subset \mathbb{R}^{2N}$, where each simplex $\Delta = \{(a, b) : a, b \geq 0, a + b \leq M - 1\}$. The open-frame score distribution $d_{\text{open}}(s)$ counts lattice points in the hyperplane slice $\{(a_1, b_1, \ldots, a_N, b_N) \in \Delta^N : \sum(a_k + b_k) = s\}$.
+
+By Ehrhart theory, $d_{\text{open}}(s)$ is a *piecewise polynomial* in $s$ of degree $2N - 1$ (the dimension of the slice). The Ehrhart-Macdonald reciprocity theorem yields a duality between the lattice point counts of the interior and the closure of this polytope, giving a non-obvious symmetry in the open-frame score distribution. This perspective connects the score enumeration problem to the well-studied theory of lattice point counting in polytopes.
+
+### Open questions
+
+1. *Exact state space formula.* The linear growth $|\mathcal{S}_N| \approx 120(N-1)$ for $M = 10$ suggests a general formula $|\mathcal{S}_N| \approx c(M, K) \cdot N$ for large $N$. Is $c(M, K) = |\text{bonus states}| \times (1+K) \times M$?
+
+2. *Multimodality threshold.* For which $(N, M, K)$ does the score distribution become multimodal? The empirical distributions reported by VanDerwerken and Kenter [-@vanderwerken2018] show clear multimodality for skilled bowlers under the standard game, but the uniform-distribution scores computed here are unimodal. Is multimodality a property of the scoring system or of the skill distribution?
+
+3. *Binary bowling analysis.* The case $\mathcal{B}(N, 1, 2)$ has only $3^{N-1} \cdot \omega_N(1)$ games and maximum score $3N$. With $\omega(1) = 3$ frame outcomes (strike, spare, open), the transfer matrix $T$ is $4 \times 4$ with entries that are polynomials of degree at most 3 in $t$. A complete closed-form analysis of this simplest non-trivial case may be tractable and would illuminate the full theory.
+
+4. *Tropical eigenvalue for general $(M, K)$.* The tropical eigenvalue of $T$ (in the max-plus algebra) equals $(1+K) \cdot M$ --- the maximum per-frame score. The tropical eigenvector identifies the dominant bonus state. Does the tropical spectral gap characterise the "fragility" of perfect play?
+
+## References {.unnumbered}

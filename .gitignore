@@ -34,3 +34,14 @@ htmlcov/
 
 # Environment
 .env
+
+# Reference PDFs (do not upload to GitHub)
+references/*.pdf
+references/*.md
+!references/.gitkeep
+
+# Quarto rendered outputs
+paper/**/index.html
+paper/**/index.pdf
+paper/**/index.tex
+paper/**/index_files/

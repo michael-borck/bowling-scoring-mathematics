@@ -30,8 +30,7 @@ This is one of three papers in a series on bowling scoring mathematics:
 
 ## Key References
 
-- Cooper & Kennedy (1990). "Is It a 300 Game?" *Mathematics Magazine*
-- Hohn (2009). "Mathematical Analysis of Bowling Scoring." WKU Masters Thesis
-- Balmoral Software. Bowling score distributions
-- McCarthy (2011). "Scoring 292 in Bowling." *Chance*
-- VanDerwerken & Kenter (2018). "Bowling Score Distributions." *JQAS*
+- Cooper & Kennedy (1990). "A Generating Function for the Distribution of the Scores of all Possible Bowling Games." *Mathematics Magazine*, 63(4), 239-243
+- Hohn (2009). "Generalized Probabilistic Bowling Distributions." WKU Masters Thesis
+- Balmoral Software. "All About Bowling Scores." balmoralsoftware.com
+- VanDerwerken & Kenter (2018). "A Generative Markov Model for Bowling Scores." *JQAS*, 14(4), 213-226

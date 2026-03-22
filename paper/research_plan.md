@@ -155,15 +155,13 @@ Embed the traditional scoring system in a parametric family:
 
 ## Key References
 
-1. **Cooper, C. N. & Kennedy, R. E. (1990).** "Is It a 300 Game?" *Mathematics Magazine*, 63(5), 297-301. -- Generating function approach to the score distribution. The foundational paper.
+1. **Cooper, C. N. & Kennedy, R. E. (1990).** "A Generating Function for the Distribution of the Scores of all Possible Bowling Games." *Mathematics Magazine*, 63(4), 239-243. -- Generating function approach via a 4-state transition matrix (OPEN, SPARE, STRIKE, DOUBLE). The foundational paper.
 
-2. **Hohn, T. (2009).** "Mathematical Analysis of Bowling Scoring." Masters Thesis, Western Kentucky University. -- Generalisation to N frames, extended analysis of the state space.
+2. **Hohn, J. L. (2009).** "Generalized Probabilistic Bowling Distributions." Masters Thesis, Western Kentucky University. -- Generalisation to N frames, arithmetic mean derivation, the "Hohn Distribution" for probabilistic frame scoring.
 
-3. **Balmoral Software.** "Bowling Encyclopaedia." http://www.balmoralsoftware.com/bowling/bowling.htm -- Independent verification of exact score distributions via DP.
+3. **Balmoral Software.** "All About Bowling Scores." http://www.balmoralsoftware.com/bowling/bowling.htm -- Independent verification of exact score distributions via DP.
 
-4. **McCarthy, D. (2011).** "Scoring 292 in Bowling: A Lesson in Conditional Probability." *Chance*, 24(4), 9-13. -- Analysis of specific score preimages.
-
-5. **VanDerwerken, D. N. & Kenter, F. H. J. (2018).** "Bowling Score Distributions." *Journal of Quantitative Analysis in Sports*, 14(1), 15-25. -- Discussion of the multimodal distribution and its causes.
+4. **VanDerwerken, D. N. & Kenter, F. H. J. (2018).** "A Generative Markov Model for Bowling Scores." *Journal of Quantitative Analysis in Sports*, 14(4), 213-226. -- 4th-order Markov model with Bayesian shrinkage for empirical score distributions; documents multimodality in PBA data.
 
 ---
 

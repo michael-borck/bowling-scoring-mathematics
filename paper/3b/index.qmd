@@ -1,0 +1,179 @@
+---
+title: "A Mathematical Tour of Ten-Pin Bowling Scoring"
+subtitle: "Partition Functions, Fibonacci Numbers, and Other Surprises in a Recreational Scoring System"
+author:
+  - name: Michael
+abstract: |
+  The traditional ten-pin bowling scoring function --- a path-dependent accumulator in which strikes and spares create look-ahead bonuses that compound across frames --- turns out to be a remarkably well-connected mathematical object. Starting from the formal foundations established in a companion paper, we take a guided tour through the connections between this single scoring function and a surprising range of mathematical fields: abstract algebra (the bonus state transitions generate an aperiodic monoid of Krohn-Rhodes complexity 0), dynamical systems (the bonus states have two attractors with a 2-frame relaxation time and asymmetric cooling), number theory (the count of maximally scattered strike patterns is the Fibonacci number $F_{11} = 89$), statistical mechanics (Cooper and Kennedy's generating function is literally a 1D lattice model partition function, with a phase crossover between "cold" and "hot" regimes), large deviations theory (the Gärtner-Ellis theorem gives exponentially precise tail bounds for extreme scores), coding theory (the scoring function is a convolutional code whose distribution is computed by the Viterbi algorithm), and convex geometry (the open-frame score distribution is an Ehrhart function on a product of simplices). The tour was conducted with the assistance of a large language model; we reflect on this collaboration as a case study in AI-assisted mathematical exploration.
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    theme: cosmo
+  pdf:
+    documentclass: article
+    number-sections: true
+    geometry: margin=1in
+    keep-tex: true
+bibliography: references.bib
+---
+
+## Introduction {#sec-introduction}
+
+This paper is a tour of the mathematics that lives inside the ten-pin bowling scoring function.
+
+The scoring system is simple enough to explain in a sentence: knock down pins, earn bonuses for strikes and spares, add it up. But the look-ahead bonus structure --- a strike's value depends on the *next two balls* --- creates inter-frame dependencies that embed the scoring function in a web of mathematical connections that neither the game's inventors nor its players likely imagined.
+
+In a companion paper [@foundations], we established the formal foundations: the scoring function as a weighted finite automaton, the bonus dependency graph, the supermodularity theorem, the unique preimage characterisation, and the state space compression. Here we take those foundations on tour --- visiting abstract algebra, dynamical systems, number theory, statistical mechanics, probability theory, coding theory, and convex geometry --- not because we set out to connect these fields, but because the scoring function keeps turning up in places we did not expect.
+
+### A note on method {#sec-method}
+
+One advantage of having a tour guide who has read broadly (if not deeply) across mathematics is the willingness to ask naive questions. *Does the bonus structure form a monoid? Is there a partition function? What does this have to do with Fibonacci numbers?* These questions, which a specialist might dismiss as category errors, turn out to yield genuine results.
+
+This tour was conducted with the assistance of a large language model (Claude, Anthropic). The collaboration worked as follows: the human author defined the mathematical object, posed the core questions, and verified all results; the AI suggested cross-disciplinary connections, proposed proof strategies, and helped cast a wider net across fields than any single author would typically traverse. All proofs have been independently verified, and the computational results checked against published tables. The AI's role was in exploration --- suggesting where to look --- not in certification.
+
+We mention this not as a disclaimer but as a methodological observation. The breadth of connections in this paper --- from Krohn-Rhodes theory to Ehrhart polynomials to the Gärtner-Ellis theorem --- reflects a style of mathematical exploration that AI collaboration makes newly practical. Whether this style produces *better* mathematics is for the reader to judge; we believe it produces *more surprising* mathematics, which in a recreational setting is perhaps the point.
+
+### Prerequisites
+
+We assume familiarity with the scoring function as formalised in [@foundations]. The key objects we carry forward are: the game space $\mathcal{G}$ ($5.73 \times 10^{18}$ valid games), the scoring function $S : \mathcal{G} \to \{0, \ldots, 300\}$, the four bonus states $(b_1, b_2) \in \{(0,0), (1,0), (1,1), (2,1)\}$, the bonus dependency graph $G(\mathbf{r})$, and the score formula $S(\mathbf{r}) = \sum r_j(1 + \deg^{-}(j))$.
+
+## Stop 1: Abstract Algebra --- The Bonus Monoid {#sec-monoid}
+
+The four bonus states and their frame-level transitions form a *transformation monoid* $\mathcal{M} = \langle \tau_O, \tau_P, \tau_S \rangle$ acting on $\{(0,0), (1,0), (1,1), (2,1)\}$:
+
+- $\tau_O$ (open): constant map to $(0,0)$.
+- $\tau_P$ (spare): constant map to $(1,0)$.
+- $\tau_S$ (strike): maps $\{(0,0), (1,0)\} \to (1,1)$ and $\{(1,1), (2,1)\} \to (2,1)$.
+
+Since $\tau_O$ and $\tau_P$ are constant (rank 1), they absorb under left-composition. The strike map satisfies $\tau_S^2 = \text{const}_{(2,1)}$ and $\tau_S \circ \tau_O = \text{const}_{(1,1)}$.
+
+::: {#prp-monoid}
+### Proposition (Krohn-Rhodes complexity)
+$\mathcal{M}$ has exactly 5 elements: $\{\text{const}_{(0,0)}, \text{const}_{(1,0)}, \text{const}_{(1,1)}, \text{const}_{(2,1)}, \tau_S\}$. It is *aperiodic* (contains no non-trivial group). By the Krohn-Rhodes theorem, $\mathcal{M}$ has complexity 0.
+:::
+
+The aperiodicity has a precise interpretation: the bonus system is *purely dissipative*. No sequence of frame outcomes can "undo" the effect of a previous sequence --- every element of $\mathcal{M}$ except $\tau_S$ is a constant map, and $\tau_S$ itself is non-injective. There is no reversible computation hiding inside the scoring system.
+
+This is a formal answer to the question *"what kind of algebraic object is the bonus system?"* --- it is the simplest possible kind of automaton, one with no group component at all.
+
+## Stop 2: Dynamical Systems --- Attractors and Relaxation {#sec-dynamics}
+
+The bonus state evolution across frames is a discrete dynamical system with two *attractors*:
+
+- **Cold attractor** $(0,0)$: stable under open frames. Any run of opens drives the system here.
+- **Hot attractor** $(2,1)$: stable under consecutive strikes. Once reached, continued strikes hold it.
+
+::: {#prp-relaxation}
+### Proposition (Relaxation times and asymmetry)
+The heating time (cold $\to$ hot) is exactly 2 frames: $(0,0) \xrightarrow{S} (1,1) \xrightarrow{S} (2,1)$. The cooling time (hot $\to$ cold) is also 2 frames. But the *scoring consequences* are asymmetric: cooling from $(2,1)$ loses the $3\times$ multiplier on a ball worth up to 10 pins (a loss of up to 20 points), while heating gains the enhanced multipliers incrementally.
+:::
+
+This asymmetry --- equal transition times but unequal scoring impact --- is the dynamical mechanism behind the scoring system's reward for consistency. Breaking a streak is penalised more heavily than starting one is rewarded, because the multiplier drops from 3 to 1 in a single non-strike, while climbing from 1 to 3 requires two successive strikes.
+
+The connection to symbolic dynamics is natural: the frame outcome sequence over $\{S, P, O\}$ defines a subshift, and the bonus-state sequence is its image under a 1-block map. The topological entropy of the full shift is $\ln 3$; the bonus-state image has lower entropy because the map is not injective.
+
+## Stop 3: Number Theory --- Fibonacci Strikes {#sec-fibonacci}
+
+::: {#prp-fibonacci}
+### Proposition (Non-adjacent strikes and Fibonacci numbers)
+The number of ways to place exactly $k$ strikes in non-adjacent frames among frames 1--9 is $\binom{10-k}{k}$. The total number of non-adjacent strike patterns is:
+$$
+\sum_{k=0}^{4} \binom{10-k}{k} = 1 + 9 + 28 + 35 + 15 = 89 = F_{11}
+$$
+the 11th Fibonacci number. For $N-1$ standard frames: the count is $F_{N+1}$.
+:::
+
+*Proof.* Placing $k$ non-adjacent items among $N-1$ positions is equivalent to choosing $k$ from $N-k$ available slots, giving $\binom{N-k}{k}$. The identity $\sum_{k \geq 0} \binom{N-k}{k} = F_{N+1}$ follows from the correspondence with binary strings of length $n$ having no consecutive 1s. $\square$
+
+The $F_{11} = 89$ non-adjacent patterns are precisely the configurations that *minimise* bonus compounding --- the maximally scattered strike placements from the price of scattering analysis in [@foundations]. Fibonacci numbers count the worst-case arrangements.
+
+## Stop 4: Statistical Mechanics --- The Partition Function {#sec-partition}
+
+This is perhaps the deepest connection. Cooper and Kennedy's transfer matrix computation is *formally identical* to the partition function of a 1-dimensional lattice model in statistical mechanics.
+
+Define the *bowling partition function*:
+
+$$
+Z(\beta) = \sum_{\mathbf{r} \in \mathcal{G}} e^{\beta \cdot S(\mathbf{r})} = \sum_{s=0}^{300} d(s) \, e^{\beta s}
+$$
+
+This is simply the generating function $P(t)$ evaluated at $t = e^{\beta}$. The parameter $\beta$ is the inverse temperature:
+
+- $\beta = 0$: all games equally weighted (infinite temperature). $Z(0) = |\mathcal{G}|$.
+- $\beta \to \infty$: the partition function is dominated by the perfect game (ground state).
+- $\beta \to -\infty$: only the gutter game survives.
+
+The *free energy per frame* is:
+
+$$
+f(\beta) = \frac{1}{N} \ln Z(\beta) = \ln \lambda_1(\beta) + O(1/N)
+$$
+
+where $\lambda_1(\beta)$ is the largest eigenvalue of the Cooper-Kennedy transition matrix $T(e^{\beta})$. Its derivatives give the cumulants:
+
+$$
+\langle S \rangle = \frac{\partial \ln Z}{\partial \beta}, \qquad \text{Var}(S) = \frac{\partial^2 \ln Z}{\partial \beta^2}.
+$$
+
+The 4 bonus states play the role of *spin states* in a 1D lattice model with nearest-neighbour interactions spanning 2 sites. The transition rules define Boltzmann weights. The frame-to-frame independence is translational invariance of the lattice Hamiltonian; the frame 10 anomaly is a boundary condition.
+
+The $\beta$-parameterised ensemble interpolates between two regimes:
+
+- **High temperature** ($\beta \approx 0$): open frames dominate --- the "disordered phase." Scores concentrate near 77.
+- **Low temperature** ($\beta \gg 1$): consecutive strikes dominate --- the "ordered phase" with maximum bonus compounding.
+
+In a 1D model with finite-range interactions, there is no sharp phase transition (by Perron-Frobenius, $\lambda_1(\beta)$ is analytic). But a rapid crossover occurs where the spectral gap narrows --- this is where the correlation length diverges, and the system transitions from open-frame-dominated to strike-dominated behaviour.
+
+## Stop 5: Large Deviations --- Exponential Tail Bounds {#sec-large-deviations}
+
+The partition function connects directly to *large deviations theory*, providing exponentially precise estimates far sharper than the central limit theorem.
+
+::: {#thm-large-deviations}
+### Theorem (Large deviations for extreme scores)
+Define $\Lambda(\beta) = \lim_{N \to \infty} N^{-1} \ln \mathbb{E}[e^{\beta S_N}] = \ln \lambda_1(\beta)$. By the Gärtner-Ellis theorem:
+$$
+\Pr\!\left(\frac{S_N}{N} \geq x\right) \asymp e^{-N \cdot I(x)}
+$$
+where the rate function $I(x) = \sup_{\beta}[\beta x - \Lambda(\beta)]$ is the Legendre transform of $\Lambda$.
+:::
+
+*Proof.* The frame scores form a 2-dependent stationary sequence. The cumulant generating function $\Lambda(\beta)$ exists because $\mathbb{E}[e^{\beta S_N}]$ is controlled by the largest eigenvalue of $T(e^\beta)$, and $\Lambda(\beta)$ is differentiable by Perron-Frobenius. The Gärtner-Ellis theorem applies. $\square$
+
+The rate function $I(x)$ gives the exponential decay rate of the probability of extreme scores. For example, $I(30)$ governs the probability of a perfect game ($S/N = 30$) as a function of game length --- far more precise than Gaussian approximation, which only captures the body of the distribution.
+
+## Stop 6: Coding Theory --- The Bowling Trellis {#sec-coding}
+
+The 4-state bonus structure, frame-by-frame processing, and DP computation have a natural interpretation in coding theory. The scoring function is a *convolutional code* with constraint length 2 and 4 encoder states. The exact score distribution is computed by what amounts to the *Viterbi algorithm* applied to this trellis.
+
+The trellis has $N - 1 = 9$ sections, each with 4 states and 66 branches per state. The *trellis complexity* --- $4 \times 9 \times 66 = 2{,}376$ state-branch pairs --- is the "size" of the computation, compared to $5.73 \times 10^{18}$ games: a compression factor of $\sim 10^{15}$.
+
+The information-theoretic analysis from [@foundations] sits naturally here. The Shannon entropy $H(S) = 5.806$ bits is the mutual information $I(\mathbf{r}; S)$ under the uniform input distribution. The channel capacity $C = \log_2(301) = 8.234$ bits is achieved by an input distribution that equalises scores --- massively overweighting rare high-scoring games. The capacity gap $C - H(S) = 2.428$ bits measures how far the uniform distribution is from making all scores equally likely.
+
+The *min-entropy* $H_\infty = 5.053$ bits has a direct operational meaning: an adversary trying to guess a bowler's score succeeds with probability $p(77) \approx 3.01\%$ using the optimal strategy of always guessing the mode.
+
+## Stop 7: Convex Geometry --- Ehrhart Theory {#sec-ehrhart}
+
+For games consisting entirely of open frames, the game space is the set of lattice points in a product of $N$ simplices $\Delta^N \subset \mathbb{R}^{2N}$, where $\Delta = \{(a, b) : a, b \geq 0, a + b \leq 9\}$. The open-frame score distribution $d_{\text{open}}(s)$ counts lattice points in the hyperplane slice $\sum(a_k + b_k) = s$.
+
+By Ehrhart theory, $d_{\text{open}}(s)$ is a *piecewise polynomial* in $s$ of degree $2N - 1$. The Ehrhart-Macdonald reciprocity theorem yields a duality between the lattice point counts of the interior and the closure of this polytope, giving a non-obvious symmetry in the open-frame score distribution.
+
+This perspective connects the combinatorial problem of counting game paths to the geometric problem of counting lattice points in polytope slices --- a problem with a rich existing theory and efficient algorithms.
+
+## Stop 8: Tropical Algebra {#sec-tropical}
+
+Replacing the standard semiring $(\mathbb{Z}, +, \times)$ with the *tropical semiring* $(\mathbb{R} \cup \{-\infty\}, \max, +)$ in the transfer matrix $T$ yields the tropical analogue of the scoring function. The tropical eigenvalue of $T$ --- computed by tropical matrix algebra --- equals $30 = 3 \times 10$, the maximum per-frame score. The tropical eigenvector identifies the double state $(2,1)$ as the dominant state in the max-plus sense.
+
+This provides an alternative derivation of the maximum score: the tropical spectral radius of the transition matrix is the asymptotic growth rate of the maximum achievable score per frame, and its eigenvector identifies the bonus state that sustains this maximum.
+
+## Reflection: AI-Assisted Mathematical Exploration {#sec-reflection}
+
+The breadth of this tour --- from Krohn-Rhodes decomposition to Gärtner-Ellis large deviations --- would be unusual in a paper written by a single mathematician, however polymathic. Not because the individual connections are deep (most are one or two pages), but because the *search* across fields is expensive. A graph theorist might notice the interval graph structure; a physicist might recognise the partition function; an algebraist might spot the monoid. But it takes a broad search to find them all, and it takes a tool that reads broadly to suggest the search.
+
+The collaboration had a clear division: the AI proposed connections (many of which were dead ends, duly discarded); the human verified them, developed the proofs, and judged which were genuine versus superficial. The resulting paper is, we hope, evidence that this division of labour can be productive --- that the "naive question" style of mathematical exploration, in which a broad-but-shallow agent suggests connections for a deep-but-narrow agent to verify, has value.
+
+Whether the bowling scoring function *deserves* this much mathematical attention is a fair question. We answer it empirically: the object turned out to be connected to at least eight distinct areas of mathematics, each yielding at least one concrete result. For a recreational scoring system designed by nineteenth-century bowlers, that is perhaps surprising enough to be worth reporting.
+
+## References {.unnumbered}
